@@ -14,6 +14,7 @@ news = db['news']
 #Initiating our model. We have a local instance for the mpnet-weights. We need it so we don't use the cloud everytime we call our cron-job
 #local_path
 path = "assets/milvus"
+huggingface_link = "paraphrase-mpnet-base-v2"
 model = SentenceTransformer(path)
 
 # Filtering out unscanned data
