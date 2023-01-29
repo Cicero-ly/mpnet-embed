@@ -4,9 +4,10 @@ from bson import  ObjectId
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import normalize
 from pymongo import MongoClient
+import os
 
-
-client = MongoClient("mongodb+srv://ramsishammadi:hWzgQHYmGkJum15B@cluster0.crcvzwu.mongodb.net/?retryWrites=true&w=majority")
+credentials = os.environ['MONGO_SECRET_KEY']
+client = MongoClient(credentials)
 
 db = client["cicero_thoughts"]
 

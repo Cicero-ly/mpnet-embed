@@ -4,7 +4,7 @@ from bson import  ObjectId
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import normalize
-
+import os
 
 class Embed_Model():
   def __init__(self):
@@ -13,7 +13,9 @@ class Embed_Model():
         huggingface_link = "paraphrase-mpnet-base-v2"
         model = SentenceTransformer(path)
         self.model = model
-        client = MongoClient("mongodb+srv://ramsishammadi:hWzgQHYmGkJum15B@cluster0.crcvzwu.mongodb.net/?retryWrites=true&w=majority")
+
+        credentials = os.environ['MONGO_SECRET_KEY']
+        client = MongoClient(credentials)
 
         print("Connection Successful")
         db = client["cicero_thoughts"]
