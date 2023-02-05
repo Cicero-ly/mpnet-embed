@@ -1,4 +1,4 @@
-# mpnet-embed
+# mpnet-embed (OUTDATED README)
 Automating embedding for daily uploaded content to cicero
 
 1- Download [Model]( https://drive.google.com/file/d/1nv9OEJUiqP3ByeoBAKEttL56K8qRfgII/view?usp=share_link)
