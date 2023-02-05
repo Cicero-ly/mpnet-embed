@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from bson import ObjectId
 from pymongo import MongoClient
-from sklearn.preprocessing import normalize
 import os
 import banana_dev as banana
 
@@ -42,13 +41,13 @@ class Embed:
         ).tolist()
         print(text_data[0])
 
-        sentence_embeddings = banana.run(
+        banana_output = banana.run(
             self.banana["api_key"], self.banana["model_key"], {"prompt": text_data}
         )
-        sentence_embeddings = normalize(sentence_embeddings)
+        # TODO: make sure the following line is correct
+        sentence_embeddings = banana_output["data"]["modelOutputs"]
 
-        fields = sentence_embeddings.tolist()
-        df["mpnet_embeddings"] = fields
+        df["mpnet_embeddings"] = sentence_embeddings
         try:
             for row in df.to_dict("records"):
                 self.news.update_one(
