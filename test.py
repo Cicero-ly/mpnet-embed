@@ -1,7 +1,7 @@
 import banana_dev as banana
 import os
 import pprint
-pp = pprint.PrettyPrinter(indent=4)
+pp = pprint.PrettyPrinter(indent=4, depth=4)
 
 api_key = os.environ["BANANA_API_KEY"]
 model_key = os.environ["BANANA_MODEL_KEY"]

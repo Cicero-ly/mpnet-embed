@@ -45,7 +45,7 @@ class Embed:
             self.banana["api_key"], self.banana["model_key"], {"prompt": text_data}
         )
         # TODO: make sure the following line is correct
-        sentence_embeddings = banana_output["data"]["modelOutputs"]
+        sentence_embeddings = banana_output["modelOutputs"][0]["data"]
 
         df["mpnet_embeddings"] = sentence_embeddings
         try:
