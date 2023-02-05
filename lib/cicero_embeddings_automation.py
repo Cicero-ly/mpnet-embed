@@ -38,11 +38,10 @@ class Embed:
 
         text_data = df.apply(
             lambda x: x["title"] + " " + BeautifulSoup(x["content"]).get_text(), axis=1
-        ).tolist()
-        print(text_data[0])
+        )
 
         banana_output = banana.run(
-            self.banana["api_key"], self.banana["model_key"], {"prompt": text_data}
+            self.banana["api_key"], self.banana["model_key"], {"prompt": text_data.tolist()}
         )
         # TODO: make sure the following line is correct
         sentence_embeddings = banana_output["modelOutputs"][0]["data"]
