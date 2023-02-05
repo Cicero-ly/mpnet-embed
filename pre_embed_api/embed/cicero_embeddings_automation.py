@@ -1,52 +1,69 @@
 from bs4 import BeautifulSoup
 import pandas as pd
-from bson import  ObjectId
+from bson import ObjectId
 from pymongo import MongoClient
-from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import normalize
 import os
+import banana_dev as banana
 
-class Embed_Model():
-  def __init__(self):
-        #local_path
-        path = "pre_embed_api/assets/milvus"
-        huggingface_link = "paraphrase-mpnet-base-v2"
-        model = SentenceTransformer(path)
-        self.model = model
 
-        credentials = os.environ['MONGO_SECRET_KEY']
-        client = MongoClient(credentials)
+class Embed:
+    def __init__(self):
+        db_connection_string = os.environ["MONGO_CONNECTION_STRING"]
+        client = MongoClient(db_connection_string)
 
-        print("Connection Successful")
+        print("MongoDB connection successful")
         db = client["cicero_thoughts"]
 
-        self.news = db['news']
+        self.news = db["news"]
 
-  def start_job(self, max_size):
-        
+        self.banana = {
+            "api_key": os.environ["BANANA_API_KEY"],
+            "model_key": os.environ["BANANA_MODEL_KEY"],
+        }
+
+    def start_job(self, max_size):
         status = "Success"
 
         # Target only data that has content and title available.
-        df = pd.DataFrame(self.news.find({"valuable": True, "reviewed":True, "mpnet_embeddings": {"$exists": False}}))
-        df = df[~((df['content'].isna()) + (df['title'].isna()))].iloc[:max_size]
+        df = pd.DataFrame(
+            self.news.find(
+                {
+                    "valuable": True,
+                    "reviewed": True,
+                    "mpnet_embeddings": {"$exists": False},
+                }
+            )
+        )
+        df = df[~((df["content"].isna()) + (df["title"].isna()))].iloc[:max_size]
 
-        text_data = df.apply(lambda x: x['title']+' '+BeautifulSoup(x['content']).get_text(), axis = 1).tolist()
+        text_data = df.apply(
+            lambda x: x["title"] + " " + BeautifulSoup(x["content"]).get_text(), axis=1
+        ).tolist()
         print(text_data[0])
 
-        sentence_embeddings = self.model.encode(text_data)
+        sentence_embeddings = banana.run(
+            self.banana["api_key"], self.banana["model_key"], {"prompt": text_data}
+        )
         sentence_embeddings = normalize(sentence_embeddings)
 
         fields = sentence_embeddings.tolist()
-        df['mpnet_embeddings'] = fields
+        df["mpnet_embeddings"] = fields
         try:
-          for row in df.to_dict("records"):
-            self.news.update_one({'_id' : ObjectId(row['_id'])},{'$set': {'mpnet_embeddings': row['mpnet_embeddings']}}, upsert = False)
+            for row in df.to_dict("records"):
+                self.news.update_one(
+                    {"_id": ObjectId(row["_id"])},
+                    {"$set": {"mpnet_embeddings": row["mpnet_embeddings"]}},
+                    upsert=False,
+                )
         except Exception as e:
-          print(e)
-          status = e
-        return  status, len(df)
+            print(e)
+            status = e
+        return status, len(df)
 
-model = Embed_Model()
-        
+
+model = Embed()
+
+
 def get_model():
     return model
