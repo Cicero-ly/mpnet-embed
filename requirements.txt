@@ -10,6 +10,7 @@ dnspython==2.3.0
 fastapi==0.89.1
 h11==0.14.0
 idna==3.4
+lxml==4.9.2
 mypy-extensions==1.0.0
 numpy==1.24.1
 packaging==23.0
