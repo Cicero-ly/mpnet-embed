@@ -1,9 +1,10 @@
 from bs4 import BeautifulSoup
-import pandas as pd
-from bson import ObjectId
 from pymongo import MongoClient
 import os
 import banana_dev as banana
+import pprint
+
+pp = pprint.PrettyPrinter(indent=4)
 
 
 class Embed:
@@ -21,43 +22,41 @@ class Embed:
             "model_key": os.environ["BANANA_MODEL_KEY"],
         }
 
+    def serialize_thought_for_model(self, thought):
+        soup = BeautifulSoup(thought["content"], "lxml")
+        return thought["title"] + " " + soup.get_text(strip=True)
+
     def start_job(self, max_size):
         status = "Success"
+        thoughts_to_encode = []
 
-        # Target only data that has content and title available.
-        df = pd.DataFrame(
-            self.news.find(
-                {
-                    "valuable": True,
-                    "reviewed": True,
-                    "mpnet_embeddings": {"$exists": False},
-                }
-            )
-        )
-        df = df[~((df["content"].isna()) + (df["title"].isna()))].iloc[:max_size]
+        for thought in self.news.find(
+            {
+                "valuable": True,
+                "reviewed": True,
+                "mpnet_embeddings": {"$exists": False},
+                "title": {"$ne": None},
+                "content": {"$ne": None},
+            },
+            {},
+            limit=max_size,
+        ):
+            # print("thought: ", thought)
+            serialized_thought = self.serialize_thought_for_model(thought)
+            thoughts_to_encode.append(serialized_thought)
 
-        text_data = df.apply(
-            lambda x: x["title"] + " " + BeautifulSoup(x["content"]).get_text(), axis=1
-        )
+        pp.pprint(thoughts_to_encode)
 
-        banana_output = banana.run(
-            self.banana["api_key"], self.banana["model_key"], {"prompt": text_data.tolist()}
-        )
+        # banana_output = banana.run(
+        #     self.banana["api_key"],
+        #     self.banana["model_key"],
+        #     {"prompt": text_data.tolist()},
+        # )
         # TODO: make sure the following line is correct
-        sentence_embeddings = banana_output["modelOutputs"][0]["data"]
+        # sentence_embeddings = banana_output["modelOutputs"][0]["data"]
 
-        df["mpnet_embeddings"] = sentence_embeddings
-        try:
-            for row in df.to_dict("records"):
-                self.news.update_one(
-                    {"_id": ObjectId(row["_id"])},
-                    {"$set": {"mpnet_embeddings": row["mpnet_embeddings"]}},
-                    upsert=False,
-                )
-        except Exception as e:
-            print(e)
-            status = e
-        return status, len(df)
+        # TODO: We're going to use Pinecone instead to store vectors.
+        return status, len(thoughts_to_encode)
 
 
 model = Embed()
