@@ -15,7 +15,7 @@ class Embed:
         print("MongoDB connection successful")
         db = client["cicero_thoughts"]
 
-        self.news = db["news_test_embed"]
+        self.news = db["news"]
 
         self.banana = {
             "api_key": os.environ["BANANA_API_KEY"],
