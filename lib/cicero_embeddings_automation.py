@@ -3,6 +3,7 @@ from pymongo import MongoClient
 import os
 import banana_dev as banana
 import pprint
+import sys
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -40,25 +41,30 @@ class Embed:
                 "content": {"$ne": None},
             },
             {},
-            limit=max_size,
+            limit=max_size
         ):
-            # print("thought: ", thought)
             serialized_thought = self.serialize_thought_for_model(thought)
             thoughts_to_encode.append(serialized_thought)
             i += 1
 
-        pp.pprint(thoughts_to_encode)
+        # print("size in memory of thoughts to encode: ", sys.getsizeof(thoughts_to_encode))
 
-        # banana_output = banana.run(
-        #     self.banana["api_key"],
-        #     self.banana["model_key"],
-        #     {"prompt": text_data.tolist()},
-        # )
-        # TODO: make sure the following line is correct
-        # sentence_embeddings = banana_output["modelOutputs"][0]["data"]
+        try:
+            banana_output = banana.run(
+                self.banana["api_key"],
+                self.banana["model_key"],
+                { "prompt": thoughts_to_encode },
+            )
 
-        # TODO: We're going to use Pinecone instead to store vectors.
-        return status, len(thoughts_to_encode)
+            print("banana output:")
+            pp.pprint(banana_output["modelOutputs"][0]["data"])
+
+        except Exception as e:
+            print("Error: ", e)
+            status = "Error: " + str(e)
+
+        # TODO: We're going to use Pinecone to store vectors.
+        return status, i
 
 
 model = Embed()
