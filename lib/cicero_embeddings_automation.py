@@ -28,6 +28,7 @@ class Embed:
 
     def start_job(self, max_size):
         status = "Success"
+        i = 0
         thoughts_to_encode = []
 
         for thought in self.news.find(
@@ -44,6 +45,7 @@ class Embed:
             # print("thought: ", thought)
             serialized_thought = self.serialize_thought_for_model(thought)
             thoughts_to_encode.append(serialized_thought)
+            i += 1
 
         pp.pprint(thoughts_to_encode)
 
