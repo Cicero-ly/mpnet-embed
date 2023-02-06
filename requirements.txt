@@ -14,7 +14,6 @@ lxml==4.9.2
 mypy-extensions==1.0.0
 numpy==1.24.1
 packaging==23.0
-pandas==1.5.3
 pathspec==0.11.0
 platformdirs==2.6.2
 pydantic==1.10.4
