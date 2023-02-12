@@ -1,12 +1,8 @@
-import os
 from typing import Union
 from fastapi import Depends, FastAPI
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from cicero_embeddings_automation import Embed, get_embed
-import asyncio
 
 
 app = FastAPI()
@@ -26,15 +22,16 @@ app.add_middleware(
 # For now, it's just the daily cron, that can be triggered by a post trigger to start working
 # Can add a limit for how many rows to change, using -1
 class embedRequest(BaseModel):
-    max_size: int
+    job_id: Union[str, None]
+    max_size: Union[int, None]
 
 
 @app.post("/run-embed")
 async def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
     print(request)
-    job_info = await embed.create_job(request.max_size)
-
-    return job_info
+    if request.job_id is not None:
+        return await embed.resume_job(request.job_id)
+    return await embed.create_job(request.max_size)
 
 
 @app.get("/get-job-status/")

@@ -48,13 +48,19 @@ class Embed:
         self.init_banana()
 
     def get_thoughts_for_embedding(self, job):
+        # TODO: email if limit hit so we can scale
+        limit = job.get("max_size", 5000)
         thoughts_to_encode = []
         if len(job["thoughts_queued"]) > 0:
-            for thought in job["thoughts_queued"]:
-                thought = self.news.find_one({"_id": thought["_id"]})
+            for thought_pointer in job["thoughts_queued"]:
+                thought = self.news.find_one({"_id": thought_pointer["_id"]})
                 serialized_thought = self.serialize_thought_for_model(thought)
                 thoughts_to_encode.append(
-                    (thought["collection"], thought["_id"], serialized_thought)
+                    (
+                        thought_pointer["collection"],
+                        thought_pointer["_id"],
+                        serialized_thought,
+                    )
                 )
         else:
             for thought in self.news.find(
@@ -66,7 +72,7 @@ class Embed:
                     "content": {"$ne": None},
                 },
                 {},
-                limit=job["max_size"],
+                limit=limit,
             ):
                 serialized_thought = self.serialize_thought_for_model(thought)
                 thoughts_to_encode.append(("news", thought["_id"], serialized_thought))
@@ -80,6 +86,8 @@ class Embed:
         return json_response
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
+        existing_job = self.embed_jobs.find_one({"_id": job_id})
+        old_thoughts_queued = existing_job["thoughts_queued"]
         self.embed_jobs.update_one(
             {
                 "_id": job_id,
@@ -88,9 +96,11 @@ class Embed:
                 "$set": {
                     "status": status,
                     "last_updated_at": datetime.now(),
-                    "thoughts_queued": thoughts_queued,
+                    "thoughts_queued": thoughts_queued
+                    if len(thoughts_queued) > 0
+                    else old_thoughts_queued,
                     "thoughts_encoded": thoughts_encoded,
-                }
+                },
             },
         )
 
@@ -119,11 +129,24 @@ class Embed:
             print("Error creating job: ", e)
             return "Error creating job"
 
+    async def resume_job(self, job_id):
+        try:
+            asyncio.ensure_future(self.execute_job(job_id))
+            return {
+                "message": "Job resumed",
+                "job_id": str(job_id),
+            }
+        except Exception as e:
+            print("Error resuming job: ", e)
+            return "Error resuming job"
+
     async def execute_job(self, job_id):
         i = 0
         status = "Starting job..."
         print("Starting job...")
 
+        assert ObjectId.is_valid(job_id)
+        job_id = ObjectId(job_id)
         job = self.embed_jobs.find_one({"_id": job_id})
         assert job is not None
         print(job)
@@ -133,26 +156,28 @@ class Embed:
 
         self.update_job(job_id, status)
 
-        thoughts_to_encode = self.get_thoughts_for_embedding(job)
+        thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
+        thoughts_to_encode = {
+            "pointers": [
+                {
+                    "collection": x[0],
+                    "_id": x[1],
+                }
+                for x in thoughts_to_encode_tuples
+            ],
+            "prompts": [x[2] for x in thoughts_to_encode_tuples],
+        }
 
-        status = "Thoughts serialized. Number of thoughts to embed: " + str(
+        status = "Thoughts queued. Number of thoughts to embed: " + str(
             len(thoughts_to_encode)
         )
         self.update_job(
             job_id,
             status,
-            thoughts_queued=[
-                {
-                    "collection": x[0],
-                    "_id": x[1],
-                }
-                for x in thoughts_to_encode
-            ],
+            thoughts_queued=thoughts_to_encode["pointers"],
         )
 
         try:
-            prompts = [x[2] for x in thoughts_to_encode]
-
             # Thoughts are aggregated and send to banana all at once
             # to minimize the time the workload is up (would rather it not be idle between API calls)
             # It's cheaper to run this job longer than run banana longer
@@ -162,7 +187,9 @@ class Embed:
             raise Exception("banana fialed")
 
             banana_output = banana.run(
-                self.banana["api_key"], self.banana["model_key"], {"prompt": prompts}
+                self.banana["api_key"],
+                self.banana["model_key"],
+                {"prompt": thoughts_to_encode["prompts"]},
             )
             vectors = banana_output["modelOutputs"][0]["data"]
 
@@ -195,19 +222,19 @@ class Embed:
                 )
                 i += 1
 
+            status = "Success"
+            self.update_job(
+                job_id,
+                status,
+                thoughts_encoded=[
+                    {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode
+                ],
+            )
+
         except Exception as e:
             print("Error: ", e)
             status = "Error: " + str(e)
             self.update_job(job_id, status)
-
-        status = "Success"
-        self.update_job(
-            job_id,
-            status,
-            thoughts_encoded=[
-                {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode
-            ],
-        )
 
         print("Job complete.")
         return
