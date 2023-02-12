@@ -51,9 +51,11 @@ class Embed:
         thoughts_to_encode = []
         if len(job["thoughts_queued"]) > 0:
             for thought in job["thoughts_queued"]:
-                thought = self.news.find_one({"_id": thought['_id']})
+                thought = self.news.find_one({"_id": thought["_id"]})
                 serialized_thought = self.serialize_thought_for_model(thought)
-                thoughts_to_encode.append((thought["collection"], thought["_id"], serialized_thought))
+                thoughts_to_encode.append(
+                    (thought["collection"], thought["_id"], serialized_thought)
+                )
         else:
             for thought in self.news.find(
                 {
@@ -133,15 +135,20 @@ class Embed:
 
         thoughts_to_encode = self.get_thoughts_for_embedding(job)
 
-        status = (
-            "Thoughts serialized. Number of thoughts to embed: "
-            + str(len(thoughts_to_encode))
+        status = "Thoughts serialized. Number of thoughts to embed: " + str(
+            len(thoughts_to_encode)
         )
-        self.update_job(job_id, status, thoughts_queued=[{
-            "collection": x[0],
-            "_id": x[1],
-        } for x in thoughts_to_encode
-        ])
+        self.update_job(
+            job_id,
+            status,
+            thoughts_queued=[
+                {
+                    "collection": x[0],
+                    "_id": x[1],
+                }
+                for x in thoughts_to_encode
+            ],
+        )
 
         try:
             prompts = [x[2] for x in thoughts_to_encode]
@@ -151,7 +158,7 @@ class Embed:
             # It's cheaper to run this job longer than run banana longer
             status = "Sending thoughts to banana for embedding..."
             self.update_job(job_id, status)
-            
+
             raise Exception("banana fialed")
 
             banana_output = banana.run(
@@ -198,8 +205,7 @@ class Embed:
             job_id,
             status,
             thoughts_encoded=[
-                {"collection": x[0], "_id": x[1]}
-                for x in thoughts_to_encode
+                {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode
             ],
         )
 
