@@ -1,9 +1,11 @@
 import os
-from typing import Dict, List
+from typing import Union
 from fastapi import Depends, FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from cicero_embeddings_automation import Embed, get_model
+from cicero_embeddings_automation import Embed, get_embed
 
 
 app = FastAPI()
@@ -31,13 +33,15 @@ class embedResponse(BaseModel):
 
 
 @app.post("/run-embed", response_model=embedResponse)
-def embed(request: embedRequest, model: Embed = Depends(get_model)):
+def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
     print(request)
-    job_info = model.create_job(request.max_size)
+    job_info = embed.create_job(request.max_size)
 
     return embedResponse(job_info=job_info)
 
 
-@app.get("/get-job-status/{job_id}")
-def get_job_status(job_id: str, model: Embed = Depends(get_model)):
-    return model.get_job_status(job_id)
+@app.get("/get-job-status/")
+def get_job_status(id: str, embed: Embed = Depends(get_embed)):
+    if id is None:
+        return {"error": "No job id provided"}
+    return embed.get_job_status(id)

@@ -6,6 +6,8 @@ import pprint
 from datetime import datetime
 import pinecone
 from nanoid import generate as generate_nanoid
+from bson.objectid import ObjectId
+import json
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -62,7 +64,11 @@ class Embed:
         return thoughts_to_encode
 
     def get_job_status(self, job_id):
-        return self.embed_jobs.find_one({"_id": job_id}, {"_id": 1, "status": 1})
+        job = self.embed_jobs.find_one({"_id": ObjectId(job_id)})
+        # Ugly hack for converting ObjectId to string, since FastAPI's json_encoder
+        # can't handle it
+        json_response = json.loads(json.dumps(job, indent=4, default=str))
+        return json_response
 
     def update_job_status(self, job_id, status, thoughts_encoded=[]):
         self.embed_jobs.update_one(
@@ -93,7 +99,7 @@ class Embed:
                     "last_updated_at": now,
                 }
             )
-            self.execute_job(job.inserted_id)
+            # self.execute_job(job.inserted_id)
             return str("Job created successfully. Job ID: " + str(job.inserted_id))
         except Exception as e:
             print("Error creating job: ", e)
@@ -161,6 +167,7 @@ class Embed:
         except Exception as e:
             print("Error: ", e)
             status = "Error: " + str(e)
+            self.update_job_status(job_id, status)
 
         status = "Success"
         self.update_job_status(
@@ -175,8 +182,8 @@ class Embed:
         return
 
 
-model = Embed()
+embed = Embed()
 
 
-def get_model():
-    return model
+def get_embed():
+    return embed
