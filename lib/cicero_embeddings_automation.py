@@ -8,6 +8,7 @@ import pinecone
 from nanoid import generate as generate_nanoid
 from bson.objectid import ObjectId
 import json
+import asyncio
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -88,7 +89,7 @@ class Embed:
         soup = BeautifulSoup(thought["content"], "lxml")
         return thought["title"] + " " + soup.get_text(strip=True)
 
-    def create_job(self, max_size: int):
+    async def create_job(self, max_size: int):
         now = datetime.now()
         try:
             job = self.embed_jobs.insert_one(
@@ -99,15 +100,16 @@ class Embed:
                     "last_updated_at": now,
                 }
             )
-            # self.execute_job(job.inserted_id)
+            asyncio.ensure_future(self.execute_job(job.inserted_id))
             return str("Job created successfully. Job ID: " + str(job.inserted_id))
         except Exception as e:
             print("Error creating job: ", e)
             return "Error creating job"
 
-    def execute_job(self, job_id):
+    async def execute_job(self, job_id):
         i = 0
 
+        print("starting job...")
         status = "Started"
         self.update_job_status(job_id, status)
 
@@ -179,6 +181,7 @@ class Embed:
             ],
         )
 
+        print("Job complete.")
         return
 
 

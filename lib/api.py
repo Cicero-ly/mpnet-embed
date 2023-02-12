@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from cicero_embeddings_automation import Embed, get_embed
+import asyncio
 
 
 app = FastAPI()
@@ -28,16 +29,12 @@ class embedRequest(BaseModel):
     max_size: int
 
 
-class embedResponse(BaseModel):
-    job_info: str
-
-
-@app.post("/run-embed", response_model=embedResponse)
-def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
+@app.post("/run-embed")
+async def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
     print(request)
-    job_info = embed.create_job(request.max_size)
+    job_info = await embed.create_job(request.max_size)
 
-    return embedResponse(job_info=job_info)
+    return job_info
 
 
 @app.get("/get-job-status/")
