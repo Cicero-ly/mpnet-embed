@@ -1,11 +1,8 @@
 import os
 from typing import Dict, List
-
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-print(os.getcwd())
 from cicero_embeddings_automation import Embed, get_model
 
 
@@ -30,13 +27,17 @@ class embedRequest(BaseModel):
 
 
 class embedResponse(BaseModel):
-    count: int
-    status: str
+    job_info: str
 
 
 @app.post("/run-embed", response_model=embedResponse)
 def embed(request: embedRequest, model: Embed = Depends(get_model)):
     print(request)
-    status, count = model.start_job(request.max_size)
+    job_info = model.create_job(request.max_size)
 
-    return embedResponse(status=status, count=count)
+    return embedResponse(job_info=job_info)
+
+
+@app.get("/get-job-status/{job_id}")
+def get_job_status(job_id: str, model: Embed = Depends(get_model)):
+    return model.get_job_status(job_id)
