@@ -7,7 +7,7 @@ from datetime import datetime
 import pinecone
 from nanoid import generate as generate_nanoid
 from bson.objectid import ObjectId
-import json
+from bson.json_util import dumps, loads
 import asyncio
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -76,7 +76,7 @@ class Embed:
         job = self.embed_jobs.find_one({"_id": ObjectId(job_id)})
         # Ugly hack for converting ObjectId to string, since FastAPI's json_encoder
         # can't handle it
-        json_response = json.loads(json.dumps(job, indent=4, default=str))
+        json_response = loads(dumps(job, indent=4, default=str))
         return json_response
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
