@@ -34,8 +34,8 @@ async def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
     return await embed.create_job(request.max_size)
 
 
-@app.get("/get-job-status/")
+@app.get("/get-job-status")
 def get_job_status(id: str, embed: Embed = Depends(get_embed)):
-    if id is None:
+    if id is None or id == "":
         return {"error": "No job id provided"}
     return embed.get_job_status(id)
