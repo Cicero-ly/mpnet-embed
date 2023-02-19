@@ -7,8 +7,6 @@ from datetime import datetime
 import pinecone
 from nanoid import generate as generate_nanoid
 from bson.objectid import ObjectId
-import asyncio
-import json
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -78,13 +76,6 @@ class Embed:
                 thoughts_to_encode.append(("news", thought["_id"], serialized_thought))
         return thoughts_to_encode
 
-    def get_job_status(self, job_id):
-        job = self.embed_jobs.find_one({"_id": ObjectId(job_id)})
-        # Ugly hack for converting ObjectId to string, since FastAPI's json_encoder
-        # can't handle it
-        json_response = json.loads(json.dumps(job, indent=4, default=str))
-        return json_response
-
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
         existing_job = self.embed_jobs.find_one({"_id": job_id})
         old_thoughts_queued = existing_job["thoughts_queued"]
@@ -107,38 +98,6 @@ class Embed:
     def serialize_thought_for_model(self, thought) -> str:
         soup = BeautifulSoup(thought["content"], "lxml")
         return thought["title"] + " " + soup.get_text(strip=True)
-
-    async def create_job(self, max_size: int):
-        now = datetime.now()
-        try:
-            job = self.embed_jobs.insert_one(
-                {
-                    "max_size": max_size,
-                    "status": "Created",
-                    "created_at": now,
-                    "last_updated_at": now,
-                    "thoughts_queued": [],
-                }
-            )
-            asyncio.ensure_future(self.execute_job(job.inserted_id))
-            return {
-                "message": "Job created successfully",
-                "job_id": str(job.inserted_id),
-            }
-        except Exception as e:
-            print("Error creating job: ", e)
-            return "Error creating job"
-
-    async def resume_job(self, job_id):
-        try:
-            asyncio.ensure_future(self.execute_job(job_id))
-            return {
-                "message": "Job resumed",
-                "job_id": str(job_id),
-            }
-        except Exception as e:
-            print("Error resuming job: ", e)
-            return "Error resuming job"
 
     async def execute_job(self, job_id):
         i = 0

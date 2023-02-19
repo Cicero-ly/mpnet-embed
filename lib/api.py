@@ -1,8 +1,8 @@
 from typing import Union
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from cicero_embeddings_automation import Embed, get_embed
+import job_tasks
 
 
 app = FastAPI()
@@ -27,15 +27,15 @@ class embedRequest(BaseModel):
 
 
 @app.post("/run-embed")
-async def embed(request: embedRequest, embed: Embed = Depends(get_embed)):
+async def embed(request: embedRequest):
     print(request)
     if request.job_id is not None:
-        return await embed.resume_job(request.job_id)
-    return await embed.create_job(request.max_size)
+        return await job_tasks.resume_job(request.job_id)
+    return await job_tasks.create_job(request.max_size)
 
 
 @app.get("/get-job-status")
-def get_job_status(id: str, embed: Embed = Depends(get_embed)):
+def get_job_status(id: str):
     if id is None or id == "":
         return {"error": "No job id provided"}
-    return embed.get_job_status(id)
+    return job_tasks.get_job_status(id)
