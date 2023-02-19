@@ -47,9 +47,10 @@ class Embed:
 
     def get_thoughts_for_embedding(self, job):
         # TODO: email if limit hit so we can scale
-        limit = job.get("max_size", 5000)
         thoughts_to_encode = []
-        if len(job["thoughts_queued"]) > 0:
+        resuming_existing_job = len(job["thoughts_queued"]) > 0
+
+        if resuming_existing_job:
             for thought_pointer in job["thoughts_queued"]:
                 thought = self.news.find_one({"_id": thought_pointer["_id"]})
                 serialized_thought = self.serialize_thought_for_model(thought)
@@ -61,6 +62,7 @@ class Embed:
                     )
                 )
         else:
+            limit = job.get("max_size", 5000)
             for thought in self.news.find(
                 {
                     "mpnet_embedding_pinecone_key": {"$exists": False},
@@ -77,8 +79,13 @@ class Embed:
         return thoughts_to_encode
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
+        print("status: ", status)
+        print("thoughts_queued:")
+        pp.pprint(thoughts_queued)
+        print("====================================================================================")
         existing_job = self.embed_jobs.find_one({"_id": job_id})
         old_thoughts_queued = existing_job["thoughts_queued"]
+
         self.embed_jobs.update_one(
             {
                 "_id": job_id,
@@ -99,20 +106,18 @@ class Embed:
         soup = BeautifulSoup(thought["content"], "lxml")
         return thought["title"] + " " + soup.get_text(strip=True)
 
-    async def execute_job(self, job_id):
+    def execute_job(self, job_id):
         i = 0
         status = "Starting job..."
-        print("Starting job...")
 
         assert ObjectId.is_valid(job_id)
         job_id = ObjectId(job_id)
         job = self.embed_jobs.find_one({"_id": job_id})
         assert job is not None
-        print(job)
 
         if len(job["thoughts_queued"]) > 0:
             status = "Resuming job..."
-
+        
         self.update_job(job_id, status)
 
         thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
@@ -127,9 +132,7 @@ class Embed:
             "prompts": [x[2] for x in thoughts_to_encode_tuples],
         }
 
-        status = "Thoughts queued. Number of thoughts to embed: " + str(
-            len(thoughts_to_encode)
-        )
+        status = "Thoughts queued."
         self.update_job(
             job_id,
             status,
@@ -143,7 +146,7 @@ class Embed:
             status = "Sending thoughts to banana for embedding..."
             self.update_job(job_id, status)
 
-            raise Exception("banana fialed")
+            # raise Exception("simulate banana failed")
 
             banana_output = banana.run(
                 self.banana["api_key"],
@@ -152,12 +155,12 @@ class Embed:
             )
             vectors = banana_output["modelOutputs"][0]["data"]
 
-            assert len(thoughts_to_encode) == len(vectors)
+            assert len(thoughts_to_encode_tuples) == len(vectors)
 
             status = "All embeddings received from banana. Uploading to pinecone... / Updating mongodb..."
             self.update_job(job_id, status)
 
-            for i, element in enumerate(thoughts_to_encode):
+            for i, element in enumerate(thoughts_to_encode_tuples):
                 embedding_key = generate_nanoid()
                 thought_collection = element[0]
                 thought_id = element[1]
@@ -186,7 +189,7 @@ class Embed:
                 job_id,
                 status,
                 thoughts_encoded=[
-                    {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode
+                    {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode_tuples
                 ],
             )
 

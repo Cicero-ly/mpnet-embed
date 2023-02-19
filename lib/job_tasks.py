@@ -5,6 +5,7 @@ from datetime import datetime
 from pymongo import MongoClient
 import os
 from cicero_embeddings_automation import Embed
+from functools import partial
 
 db_connection_string = os.environ["MONGO_CONNECTION_STRING"]
 client = MongoClient(db_connection_string)
@@ -27,7 +28,9 @@ async def create_job(max_size: int):
                 "thoughts_queued": [],
             }
         )
-        asyncio.ensure_future(embed.execute_job(job.inserted_id))
+        asyncio.create_task(
+          asyncio.to_thread(partial(embed.execute_job, job.inserted_id))
+        ) 
         return {
             "message": "Job created successfully",
             "job_id": str(job.inserted_id),
@@ -39,7 +42,9 @@ async def create_job(max_size: int):
 
 async def resume_job(job_id):
     try:
-        asyncio.ensure_future(embed.execute_job(job_id))
+        asyncio.create_task(
+          asyncio.to_thread(partial(embed.execute_job, job_id))
+        )
         return {
             "message": "Job resumed",
             "job_id": str(job_id),
