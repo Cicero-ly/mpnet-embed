@@ -75,6 +75,8 @@ class Embed:
             ):
                 serialized_thought = self.serialize_thought_for_model(thought)
                 thoughts_to_encode.append(("news", thought["_id"], serialized_thought))
+        if len(thoughts_to_encode) == 0:
+            raise Exception("No thoughts to encode")
         return thoughts_to_encode
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
@@ -111,26 +113,26 @@ class Embed:
 
         self.update_job(job_id, status)
 
-        thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
-        thoughts_to_encode = {
-            "pointers": [
-                {
-                    "collection": x[0],
-                    "_id": x[1],
-                }
-                for x in thoughts_to_encode_tuples
-            ],
-            "prompts": [x[2] for x in thoughts_to_encode_tuples],
-        }
-
-        status = "Thoughts queued."
-        self.update_job(
-            job_id,
-            status,
-            thoughts_queued=thoughts_to_encode["pointers"],
-        )
 
         try:
+            thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
+            thoughts_to_encode = {
+                "pointers": [
+                    {
+                        "collection": x[0],
+                        "_id": x[1],
+                    }
+                    for x in thoughts_to_encode_tuples
+                ],
+                "prompts": [x[2] for x in thoughts_to_encode_tuples],
+            }
+
+            status = "Thoughts queued."
+            self.update_job(
+                job_id,
+                status,
+                thoughts_queued=thoughts_to_encode["pointers"],
+            )
             # Thoughts are aggregated and send to banana all at once
             # to minimize the time the workload is up (would rather it not be idle between API calls)
             # It's cheaper to run this job longer than run banana longer
