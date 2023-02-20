@@ -108,7 +108,7 @@ class Embed:
 
         if len(job["thoughts_queued"]) > 0:
             status = "Resuming job..."
-        
+
         self.update_job(job_id, status)
 
         thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
