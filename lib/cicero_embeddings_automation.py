@@ -6,7 +6,6 @@ import pprint
 from datetime import datetime
 import pinecone
 from nanoid import generate as generate_nanoid
-from bson.objectid import ObjectId
 
 pp = pprint.PrettyPrinter(indent=4)
 
