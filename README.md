@@ -13,3 +13,5 @@ This could not have been possible without Ramsis Hammadi!
 
 - tests
 - GH actions for auto deploy to control plane
+- email on failure
+- email on max_size reached
