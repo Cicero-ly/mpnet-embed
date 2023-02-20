@@ -79,10 +79,6 @@ class Embed:
         return thoughts_to_encode
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
-        print("status: ", status)
-        print("thoughts_queued:")
-        pp.pprint(thoughts_queued)
-        print("====================================================================================")
         existing_job = self.embed_jobs.find_one({"_id": job_id})
         old_thoughts_queued = existing_job["thoughts_queued"]
 
@@ -106,14 +102,10 @@ class Embed:
         soup = BeautifulSoup(thought["content"], "lxml")
         return thought["title"] + " " + soup.get_text(strip=True)
 
-    def execute_job(self, job_id):
+    def execute_job(self, job):
+        job_id = job["_id"]
         i = 0
         status = "Starting job..."
-
-        assert ObjectId.is_valid(job_id)
-        job_id = ObjectId(job_id)
-        job = self.embed_jobs.find_one({"_id": job_id})
-        assert job is not None
 
         if len(job["thoughts_queued"]) > 0:
             status = "Resuming job..."
@@ -155,7 +147,10 @@ class Embed:
             )
             vectors = banana_output["modelOutputs"][0]["data"]
 
-            assert len(thoughts_to_encode_tuples) == len(vectors)
+            if len(vectors) != len(thoughts_to_encode_tuples):
+                raise Exception(
+                    "Number of thoughts sent to banana does not match number of thoughts returned"
+                )
 
             status = "All embeddings received from banana. Uploading to pinecone... / Updating mongodb..."
             self.update_job(job_id, status)
@@ -173,6 +168,7 @@ class Embed:
                             thought_vector,
                             {
                                 "thought_collection": thought_collection,
+                                "thought_id": str(thought_id),
                             },
                         )
                     ]
@@ -192,7 +188,6 @@ class Embed:
                     {"collection": x[0], "_id": x[1]} for x in thoughts_to_encode_tuples
                 ],
             )
-
         except Exception as e:
             print("Error: ", e)
             status = "Error: " + str(e)
@@ -200,10 +195,3 @@ class Embed:
 
         print("Job complete.")
         return
-
-
-embed = Embed()
-
-
-def get_embed():
-    return embed

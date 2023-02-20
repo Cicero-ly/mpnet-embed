@@ -16,6 +16,16 @@ embed_jobs = logs_db["embed_jobs"]
 embed = Embed()
 
 
+def validate_job(job_id):
+    if not ObjectId.is_valid(job_id):
+        raise TypeError("job_id is not a valid ObjectId")
+    job_id = ObjectId(job_id)
+    job = embed_jobs.find_one({"_id": job_id})
+    if job is None:
+        raise Exception("Could not find job with id: " + str(job_id))
+    
+    return job_id
+
 async def create_job(max_size: int):
     now = datetime.now()
     try:
@@ -28,8 +38,9 @@ async def create_job(max_size: int):
                 "thoughts_queued": [],
             }
         )
+        created_job = embed_jobs.find_one({"_id": job.inserted_id})
         asyncio.create_task(
-          asyncio.to_thread(partial(embed.execute_job, job.inserted_id))
+          asyncio.to_thread(partial(embed.execute_job, created_job))
         ) 
         return {
             "message": "Job created successfully",
@@ -42,21 +53,39 @@ async def create_job(max_size: int):
 
 async def resume_job(job_id):
     try:
+        validate_job(job_id)
+        job = embed_jobs.find_one({"_id": ObjectId(job_id)})
+
+        if job["status"] == "Success" and len(job["thoughts_encoded"]) > 0:
+            raise Exception(f"Job {job_id} has already been completed")
+
         asyncio.create_task(
-          asyncio.to_thread(partial(embed.execute_job, job_id))
+          asyncio.to_thread(partial(embed.execute_job, job))
         )
+
         return {
             "message": "Job resumed",
             "job_id": str(job_id),
         }
     except Exception as e:
         print("Error resuming job: ", e)
-        return "Error resuming job"
+        return {
+            "error": "Error resuming job",
+            "message": str(e),
+        }
 
 
 def get_job_status(job_id):
-    job = embed_jobs.find_one({"_id": ObjectId(job_id)})
-    # Ugly hack for converting ObjectId to string, since FastAPI's json_encoder
-    # can't handle serializing ObjectId
-    json_response = json.loads(json.dumps(job, indent=4, default=str))
-    return json_response
+    try:
+        validate_job(job_id)
+        job = embed_jobs.find_one({"_id": ObjectId(job_id)})
+        # Ugly hack for converting ObjectId to string, since FastAPI's json_encoder
+        # can't handle serializing ObjectId
+        json_response = json.loads(json.dumps(job, indent=4, default=str))
+        return json_response
+    except Exception as e:
+        print("Error getting job status: ", e)
+        return {
+            "error": "Error getting job status",
+            "message": str(e),
+        }
