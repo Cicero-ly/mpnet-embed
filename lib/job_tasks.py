@@ -23,8 +23,9 @@ def validate_job(job_id):
     job = embed_jobs.find_one({"_id": job_id})
     if job is None:
         raise Exception("Could not find job with id: " + str(job_id))
-    
+
     return job_id
+
 
 async def create_job(max_size: int):
     now = datetime.now()
@@ -39,9 +40,7 @@ async def create_job(max_size: int):
             }
         )
         created_job = embed_jobs.find_one({"_id": job.inserted_id})
-        asyncio.create_task(
-          asyncio.to_thread(partial(embed.execute_job, created_job))
-        ) 
+        asyncio.create_task(asyncio.to_thread(partial(embed.execute_job, created_job)))
         return {
             "message": "Job created successfully",
             "job_id": str(job.inserted_id),
@@ -59,9 +58,7 @@ async def resume_job(job_id):
         if job["status"] == "Success" and len(job["thoughts_encoded"]) > 0:
             raise Exception(f"Job {job_id} has already been completed")
 
-        asyncio.create_task(
-          asyncio.to_thread(partial(embed.execute_job, job))
-        )
+        asyncio.create_task(asyncio.to_thread(partial(embed.execute_job, job)))
 
         return {
             "message": "Job resumed",
