@@ -76,7 +76,7 @@ class Embed:
                 serialized_thought = self.serialize_thought_for_model(thought)
                 thoughts_to_encode.append(("news", thought["_id"], serialized_thought))
         if len(thoughts_to_encode) == 0:
-            raise Exception("No thoughts to encode")
+            return None
         return thoughts_to_encode
 
     def update_job(self, job_id, status, thoughts_queued=[], thoughts_encoded=[]):
@@ -116,6 +116,11 @@ class Embed:
 
         try:
             thoughts_to_encode_tuples = self.get_thoughts_for_embedding(job)
+            if thoughts_to_encode_tuples is None:
+                status = "Job complete, no thoughts to embed. (Check to make sure integrations is okay)"
+                self.update_job(job_id, status)
+                return
+
             thoughts_to_encode = {
                 "pointers": [
                     {
