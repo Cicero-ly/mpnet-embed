@@ -26,6 +26,11 @@ class Embed:
             environment=os.environ["PINECONE_ENV"],
         )
         self.pinecone_index = pinecone.Index("thoughts")
+        # This is a vanity API call to make sure that 
+        # activity is logged in Pinecone no matter what happens
+        # with the job. Otherwise, our index gets dropped after
+        # 7 days of inactivity!
+        self.pinecone_index.describe_index_stats()
 
     def init_mongodb(self):
         db_connection_string = os.environ["MONGO_CONNECTION_STRING"]
