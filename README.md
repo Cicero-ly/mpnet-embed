@@ -11,6 +11,7 @@ This could not have been possible without Ramsis Hammadi!
 
 ## TODO:
 
+- automation for ensuring our Pinecone starter doesn't get dropped after 14-day period of inactivity
 - tests
 - GH actions for auto deploy to control plane
 - email on failure
