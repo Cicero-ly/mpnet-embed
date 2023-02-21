@@ -12,7 +12,7 @@ class Job:
     
     def start_job(self):
         print("Starting job...")
-        response = requests.post(self.job_start_url, json={"max_size": 2})
+        response = requests.post(self.job_start_url, json={"max_size": 5000})
         print(response.text)
         if response.status_code != 200:
             return response
