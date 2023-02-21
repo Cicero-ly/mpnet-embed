@@ -3,3 +3,4 @@ cicero/
 .history
 __pycache__
 *.env
+*.mongodb
