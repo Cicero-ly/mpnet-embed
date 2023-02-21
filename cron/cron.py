@@ -22,7 +22,7 @@ class Job:
         print("Job started/resumed successfully.")
         job_id = response.json()["job_id"]
         data = {"id": job_id}
-        for i in range(12):
+        for i in range(1,13):
             print(f"Polling job status ({i}/12)...")
             response = requests.get(self.job_status_url, params=data)
             if response.status_code != 200:
