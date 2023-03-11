@@ -35,7 +35,7 @@ class Job:
             if "success" in status.lower():
                 print("Job complete with status: " + status)
                 return response
-            time.sleep(10)
+            time.sleep(30)
         return response
 
 
