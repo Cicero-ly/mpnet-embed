@@ -1,0 +1,6 @@
+.gitignore
+README.md
+__pycache__
+.history
+*.env
+*.mongodb

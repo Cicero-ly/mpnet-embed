@@ -1,13 +1,17 @@
 # mpnet-embed
-Automating embedding for daily uploaded content to cicero
 
-1- Download [Model]( https://drive.google.com/file/d/1nv9OEJUiqP3ByeoBAKEttL56K8qRfgII/view?usp=share_link)
+API / Job runner for performing vector embedding for newly added thoughts in the "news" thought collection.
 
-2- Copy to assets/milvus path for both 
+This could not have been possible without Ramsis Hammadi!
 
-Having two seperate docker files:
-- cron.Dockerfile: Create an image for the python script that can be executed anytime.
-- api.Dockerfile: Create an image for the fastapi server to call the script even if it fails.
+## What's happening:
 
-Building the image: 
-docker build -f x.Dockerfile -t y .
+- /api contains FastAPI server for executing jobs on request.
+- /cron contains a simple request being made to API.
+
+## TODO:
+
+- tests
+- GH actions for auto deploy to control plane
+- email on failure
+- email on max_size reached
