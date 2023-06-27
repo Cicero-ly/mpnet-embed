@@ -6,6 +6,7 @@ import pprint
 from datetime import datetime
 import pinecone
 from nanoid import generate as generate_nanoid
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -48,6 +49,9 @@ class Embed:
         self.init_mongodb()
         self.init_pinecone()
         self.init_banana()
+        # Init text splitter to split an article into chunks
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        
 
     def get_thoughts_for_embedding(self, job):
         # TODO: email if limit hit so we can scale
@@ -79,7 +83,9 @@ class Embed:
                 limit=limit,
             ):
                 serialized_thought = self.serialize_thought_for_model(thought)
+                # thoughts_to_encode new format: ['news', 'id', {'0': par0, '1': par1, ...}]
                 thoughts_to_encode.append(("news", thought["_id"], serialized_thought))
+                
         if len(thoughts_to_encode) == 0:
             return None
         return thoughts_to_encode
@@ -105,8 +111,10 @@ class Embed:
         )
 
     def serialize_thought_for_model(self, thought) -> str:
-        soup = BeautifulSoup(thought["content"], "lxml")
-        return thought["title"] + " " + soup.get_text(strip=True)
+        
+        # We will be returning a list of the paragraphs, each with an_id
+        chunks = self.text_splitter.split_text(thought)
+        return {i: chunk for i,chunk in enumerate(chunks)}
 
     def execute_job(self, job):
         job_id = job["_id"]
@@ -134,7 +142,8 @@ class Embed:
                     }
                     for x in thoughts_to_encode_tuples
                 ],
-                "prompts": [x[2] for x in thoughts_to_encode_tuples],
+                # flattening all chunks
+                "prompts": [y for x in thoughts_to_encode_tuples for y in x[2].values()],
             }
 
             status = "Thoughts queued."
@@ -167,29 +176,34 @@ class Embed:
             self.update_job(job_id, status)
 
             for i, element in enumerate(thoughts_to_encode_tuples):
-                embedding_key = generate_nanoid()
-                thought_collection = element[0]
-                thought_id = element[1]
-                thought_vector = vectors[i]
+                    embedding_ids = []
+                    for j, chunk in enumerate(thoughts_to_encode_tuples[i]):
+                        
+                        embedding_key = generate_nanoid()
+                        embedding_ids.append(embedding_key)
 
-                self.pinecone_index.upsert(
-                    [
-                        (
-                            embedding_key,
-                            thought_vector,
-                            {
-                                "thought_collection": thought_collection,
-                                "thought_id": str(thought_id),
-                            },
+                        thought_collection = element[0]
+                        thought_id = element[1] 
+                        thought_vector = vectors[i+j]
+                        # Pinecone should be updated for each chunk since it has it's own proper vector but is still linked to one single thought id
+                        self.pinecone_index.upsert(
+                            [
+                                (
+                                    embedding_key,
+                                    thought_vector,
+                                    {
+                                        "thought_collection": thought_collection,
+                                        "thought_id": str(thought_id),
+                                    },
+                                )
+                            ]
                         )
-                    ]
-                )
-
-                self.news.update_one(
-                    {"_id": thought_id},
-                    {"$set": {"mpnet_embedding_pinecone_key": embedding_key}},
-                )
-                i += 1
+                    # Mongodb should be updated once we have all our embeddings for chunks in order.
+                    self.news.update_one(
+                        {"_id": thought_id},
+                        {"$set": {"mpnet_embedding_pinecone_keys": embedding_ids}},
+                    )
+                    # i += 1
 
             status = "Success"
             self.update_job(
